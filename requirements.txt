@@ -1,16 +1,6 @@
 Flask==3.0.2
 Werkzeug==3.0.1
-pandas==2.2.1
-jupyter
-requests
-fuzzywuzzy==0.18.0
-openpyxl
-scikit-learn
+pandas>=2.2.3
+fuzzywuzzy>=0.18.0
 numpy
-vellum-ai
-matplotlib
-load_dotenv
-langchain
-google-api-python-client
-openai
-python-Levenshtein==0.25.0  # Optional but recommended for better performance
+python-Levenshtein>=0.27.1

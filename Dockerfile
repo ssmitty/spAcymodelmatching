@@ -6,8 +6,10 @@ RUN apt-get update \
   && ln -s /usr/bin/python3 python \
   && pip3 install --upgrade pip
 
-
-# Installing Python packages
-RUN apt install -y git wget curl
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . /app
+WORKDIR /app
+
+CMD ["python", "app.py"]
