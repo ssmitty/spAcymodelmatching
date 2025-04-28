@@ -9,18 +9,33 @@ def load_public_companies(json_path):
     """Load public companies from a JSON file (transpose for correct orientation)."""
     return pd.read_json(json_path).transpose()
 
-def best_match(name, public_companies):
-    """Find the best match for a company name in the public_companies DataFrame."""
+def load_combined_dataset(csv_path):
+    """Load the combined dataset for name matching."""
+    return pd.read_csv(csv_path)
+
+def best_match(name, combined_df, tickers_df):
+    """Fuzzy match name in combined dataset, then get ticker from tickers dataset."""
     if not isinstance(name, str):
-        return None, 0
-    companies_list = public_companies['title'].tolist()
+        return None, None, 0
+    # Fuzzy match against combined dataset names
+    companies_list = combined_df['Name'].tolist()
     output = process.extractOne(name, companies_list)
     if output and len(output) == 2:
-        match, score = output
-        return (match if score > 91 else None, score)
+        matched_name, score = output
+        if score < 91:
+            return None, None, score
+        # Fuzzy match the matched_name against tickers_df['title'] to get the ticker
+        ticker_titles = tickers_df['title'].tolist()
+        ticker_output = process.extractOne(matched_name, ticker_titles)
+        if ticker_output and len(ticker_output) == 2:
+            ticker_match, ticker_score = ticker_output
+            ticker_row = tickers_df[tickers_df['title'] == ticker_match]
+            ticker = ticker_row['ticker'].values[0] if not ticker_row.empty else None
+        else:
+            ticker = None
+        return matched_name, ticker, score
     else:
-        print(f"Unexpected output for name '{name}': {output}")
-        return None, 0
+        return None, None, 0
 
 def process_and_save_batch(batch_df, public_companies, save_path='results.csv'):
     """

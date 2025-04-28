@@ -4,59 +4,53 @@ import data_utils
 app = Flask(__name__)
 
 # Load company data at startup
-data_path = 'supplemental_data/company_tickers.json'
-public_companies = data_utils.load_public_companies(data_path)
+combined_data_path = '3_combined_dataset_postproc.csv'
+tickers_data_path = 'supplemental_data/company_tickers.json'
+combined_df = data_utils.load_combined_dataset(combined_data_path)
+tickers_df = data_utils.load_public_companies(tickers_data_path)
 
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def home():
-    return jsonify({"message": "Welcome to the API"})
+    result = None
+    if request.method == 'POST':
+        name = request.form.get('name')
+        if name:
+            match_name, ticker, score = data_utils.best_match(name, combined_df, tickers_df)
+            result = {
+                "input_name": name,
+                "matched_name": match_name,
+                "ticker": ticker,
+                "match_score": score
+            }
+    return '''
+        <html>
+            <head>
+                <title>Company Matcher</title>
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <link rel="stylesheet" href="/static/style.css">
+            </head>
+            <body>
+                <div class="container">
+                    <h2>Company Matcher</h2>
+                    <form method="post">
+                        <input type="text" name="name" placeholder="Enter company name" required>
+                        <br>
+                        <input type="submit" value="Match">
+                    </form>
+                    {result_html}
+                </div>
+            </body>
+        </html>
+    '''.format(
+        result_html=(
+            f"<div class='result'><b>Input:</b> {result['input_name']}<br>"
+            f"<b>Matched:</b> {result['matched_name']}<br>"
+            f"<b>Ticker:</b> {result['ticker']}<br>"
+            f"<b>Score:</b> {result['match_score']}</div>"
+            if result else ""
+        )
+    )
 
-@app.route('/health')
-def health():
-    return jsonify({"status": "healthy"})
+if __name__ == "__main__":
+    app.run(debug=True)
 
-@app.route('/match_company', methods=['POST'])
-def match_company():
-    data = request.get_json()
-    if not data or 'name' not in data:
-        return jsonify({"error": "Missing company name"}), 400
-    name = data['name']
-    match, score = data_utils.best_match(name, public_companies)
-    return jsonify({
-        "input_name": name,
-        "matched_name": match,
-        "match_score": score
-    })
-
-@app.route('/match_companies', methods=['POST'])
-def match_companies():
-    data = request.get_json()
-    if not data or 'companies' not in data:
-        return jsonify({"error": "Missing companies list"}), 400
-    results = []
-    for company in data['companies']:
-        if not isinstance(company, dict) or 'id' not in company or 'name' not in company:
-            return jsonify({"error": "Invalid company format"}), 400
-        match, score = data_utils.best_match(company['name'], public_companies)
-        results.append({
-            "id": company['id'],
-            "input_name": company['name'],
-            "matched_name": match,
-            "match_score": score
-        })
-    return jsonify({
-        "matches": results,
-        "total_processed": len(results)
-    })
-
-@app.route('/update_data', methods=['POST'])
-def update_data():
-    global public_companies
-    try:
-        public_companies = data_utils.load_public_companies(data_path)
-        return jsonify({"status": "reloaded"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-if __name__ == '__main__':
-    app.run(debug=True) 
