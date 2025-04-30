@@ -30,38 +30,49 @@ def best_match(name, combined_df, tickers_df):
     """Fuzzy match name in combined dataset, then get ticker from tickers dataset."""
     try:
         if not isinstance(name, str):
-            return None, None, None, None, 0
+            logging.warning(f"Input name is not a string: {name}")
+            return None, None, None, None, 0, 0
         
         companies_list = combined_df['Name'].tolist()
+        logging.info(f"Searching for: {name}")
         output = process.extractOne(name, companies_list)
         
         if output and len(output) == 2:
             matched_name, score = output
-            if score < 91:
-                return None, None, None, None, score
+            logging.info(f"Best match: {matched_name} with score: {score}")
+            
+            if score <= 89:
+                logging.info(f"Score {score} is below threshold of 90")
+                return None, None, None, None, score, 0
                 
             matched_row = combined_df[combined_df['Name'] == matched_name]
             if matched_row.empty:
-                return matched_name, None, None, None, score
+                logging.warning(f"Matched name {matched_name} not found in dataset")
+                return matched_name, None, None, None, score, 0
+            
             matched_row = matched_row.iloc[0]
             state = matched_row['State']
             country = matched_row['Country']
+            logging.info(f"Found state: {state}, country: {country}")
             
             ticker_titles = tickers_df['title'].tolist()
             ticker_output = process.extractOne(matched_name, ticker_titles)
             if ticker_output and len(ticker_output) == 2:
                 ticker_match, ticker_score = ticker_output
+                logging.info(f"Found ticker match: {ticker_match} with score: {ticker_score}")
                 ticker_row = tickers_df[tickers_df['title'] == ticker_match]
                 ticker = ticker_row['ticker'].values[0] if not ticker_row.empty else None
+                logging.info(f"Ticker found: {ticker}")
+                return matched_name, ticker, state, country, score, ticker_score
             else:
-                ticker = None
-                
-            return matched_name, ticker, state, country, score
+                logging.warning(f"No ticker match found for {matched_name}")
+                return matched_name, None, state, country, score, 0
         else:
-            return None, None, None, None, 0
+            logging.warning(f"No match found for {name}")
+            return None, None, None, None, 0, 0
     except Exception as e:
         logging.error(f"Error in best_match for name '{name}': {e}")
-        return None, None, None, None, 0
+        return None, None, None, None, 0, 0
 
 def process_and_save_batch(batch_df, public_companies, save_path='results.csv'):
     """

@@ -31,14 +31,15 @@ def home():
                 error_message = "No company name provided."
             else:
                 try:
-                    match_name, ticker, state, country, score = data_utils.best_match(name, combined_df, tickers_df)
+                    match_name, ticker, state, country, score, ticker_score = data_utils.best_match(name, combined_df, tickers_df)
                     result = {
                         "input_name": name,
                         "matched_name": match_name,
                         "ticker": ticker,
                         "state": state,
                         "country": country,
-                        "match_score": score
+                        "match_score": score,
+                        "ticker_score": ticker_score
                     }
                 except Exception as e:
                     logging.error(f"Error during matching: {e}")
@@ -57,7 +58,8 @@ def home():
             f"<b>Ticker:</b> {result['ticker']}<br>"
             f"<b>State:</b> {result['state']}<br>"
             f"<b>Country:</b> {result['country']}<br>"
-            f"<b>Score:</b> {result['match_score']}</div>"
+            f"<b>Company Match Score:</b> {result['match_score']}<br>"
+            f"<b>Ticker Match Score:</b> {result['ticker_score']}</div>"
         )
 
     html = f'''
@@ -85,15 +87,8 @@ def home():
     return response
 
 # Optional: Add a global error handler for uncaught exceptions
-@app.errorhandler(Exception)
-def handle_exception(e):
-    logging.error(f"Unhandled Exception: {e}")
-    response = make_response(
-        "<h1>Internal Server Error</h1><p>An unexpected error occurred.</p>", 500
-    )
-    response.headers["X-API-Version"] = API_VERSION
-    return response
+
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=8080, use_reloader=False)
 
