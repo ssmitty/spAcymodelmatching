@@ -1,28 +1,66 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, make_response
 import data_utils
+import logging
+import sys
 
 app = Flask(__name__)
 
-# Load company data at startup
-combined_data_path = '3_combined_dataset_postproc.csv'
-tickers_data_path = 'supplemental_data/company_tickers.json'
-combined_df = data_utils.load_combined_dataset(combined_data_path)
-tickers_df = data_utils.load_public_companies(tickers_data_path)
+API_VERSION = "0.1.0"
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+
+# Load company data at startup with error handling
+try:
+    combined_data_path = '3_combined_dataset_postproc.csv'
+    tickers_data_path = 'supplemental_data/company_tickers.json'
+    combined_df = data_utils.load_combined_dataset(combined_data_path)
+    tickers_df = data_utils.load_public_companies(tickers_data_path)
+except Exception as e:
+    logging.critical(f"Failed to load data at startup: {e}")
+    sys.exit(1)
 
 @app.route('/', methods=['GET', 'POST'])
 def home():
     result = None
-    if request.method == 'POST':
-        name = request.form.get('name')
-        if name:
-            match_name, ticker, score = data_utils.best_match(name, combined_df, tickers_df)
-            result = {
-                "input_name": name,
-                "matched_name": match_name,
-                "ticker": ticker,
-                "match_score": score
-            }
-    return '''
+    error_message = None
+    try:
+        if request.method == 'POST':
+            name = request.form.get('name')
+            if not name:
+                error_message = "No company name provided."
+            else:
+                try:
+                    match_name, ticker, state, country, score = data_utils.best_match(name, combined_df, tickers_df)
+                    result = {
+                        "input_name": name,
+                        "matched_name": match_name,
+                        "ticker": ticker,
+                        "state": state,
+                        "country": country,
+                        "match_score": score
+                    }
+                except Exception as e:
+                    logging.error(f"Error during matching: {e}")
+                    error_message = "An error occurred during matching. Please try again."
+    except Exception as e:
+        logging.error(f"Unexpected error in home route: {e}")
+        error_message = "An unexpected error occurred. Please try again."
+
+    result_html = ""
+    if error_message:
+        result_html = f"<div class='result' style='color:red;'><b>Error:</b> {error_message}</div>"
+    elif result:
+        result_html = (
+            f"<div class='result'><b>Input:</b> {result['input_name']}<br>"
+            f"<b>Matched:</b> {result['matched_name']}<br>"
+            f"<b>Ticker:</b> {result['ticker']}<br>"
+            f"<b>State:</b> {result['state']}<br>"
+            f"<b>Country:</b> {result['country']}<br>"
+            f"<b>Score:</b> {result['match_score']}</div>"
+        )
+
+    html = f'''
         <html>
             <head>
                 <title>Company Matcher</title>
@@ -41,15 +79,20 @@ def home():
                 </div>
             </body>
         </html>
-    '''.format(
-        result_html=(
-            f"<div class='result'><b>Input:</b> {result['input_name']}<br>"
-            f"<b>Matched:</b> {result['matched_name']}<br>"
-            f"<b>Ticker:</b> {result['ticker']}<br>"
-            f"<b>Score:</b> {result['match_score']}</div>"
-            if result else ""
-        )
+    '''
+    response = make_response(html)
+    response.headers["X-API-Version"] = API_VERSION
+    return response
+
+# Optional: Add a global error handler for uncaught exceptions
+@app.errorhandler(Exception)
+def handle_exception(e):
+    logging.error(f"Unhandled Exception: {e}")
+    response = make_response(
+        "<h1>Internal Server Error</h1><p>An unexpected error occurred.</p>", 500
     )
+    response.headers["X-API-Version"] = API_VERSION
+    return response
 
 if __name__ == "__main__":
     app.run(debug=True)

@@ -41,52 +41,6 @@ Response:
 }
 ```
 
-### 2. Match Multiple Companies
-**Endpoint:** `/match_companies`
-**Method:** POST
-**Content-Type:** application/json
-
-Request body:
-```json
-{
-    "companies": [
-        {"id": "1", "name": "First Company"},
-        {"id": "2", "name": "Second Company"}
-    ]
-}
-```
-
-Response:
-```json
-{
-    "matches": [
-        {
-            "id": "1",
-            "input_name": "First Company",
-            "matched_name": "Best Match First Company",
-            "match_score": 95
-        },
-        {
-            "id": "2",
-            "input_name": "Second Company",
-            "matched_name": "Best Match Second Company",
-            "match_score": 93
-        }
-    ],
-    "total_processed": 2
-}
-```
-
-### 3. Health Check
-**Endpoint:** `/health`
-**Method:** GET
-
-Response:
-```json
-{
-    "status": "ok",
-    "total_companies": 1000
-}
 ```
 
 ## Notes
