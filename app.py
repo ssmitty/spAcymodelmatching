@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO)
 # Load company data at startup with error handling
 try:
     combined_data_path = '3_combined_dataset_postproc.csv'
-    tickers_data_path = 'supplemental_data/company_tickers.json'
+    tickers_data_path = 'supplemental_data/company_tickers.csv'
     combined_df = data_utils.load_combined_dataset(combined_data_path)
     tickers_df = data_utils.load_public_companies(tickers_data_path)
 except Exception as e:
