@@ -1,19 +1,23 @@
 import pandas as pd
-from fuzzywuzzy import process
+from fuzzywuzzy import process, fuzz
 import logging
 
 def preprocess_name(name):
-    """Remove common company suffixes and punctuation for better matching."""
+    """Remove common company suffixes, punctuation, and non-alphanumeric chars for better matching."""
     if not isinstance(name, str):
         return name
-    name = name.lower().replace(',', '').replace('.', '').strip()
+    import re
+    name = name.lower()
+    name = re.sub(r'[^a-z0-9 ]', '', name)  # Remove all non-alphanumeric except space
     suffixes = [
         ' inc', ' corporation', ' corp', ' ltd', ' llc', ' co',
-        ' - common stock', '- common stock', ' common stock'
+        ' - common stock', '- common stock', ' common stock',
+        ' incorporated', ' plc', ' group', ' holdings', ' company', ' companies', ' lp', ' ag', ' sa', ' nv', ' spa', ' srl', ' limited', ' the', ' and', ' of', ' dba', ' llp', ' pty', ' s p a', ' s a', ' inc', ' inc', ' inc', ' inc'
     ]
     for suffix in suffixes:
         if name.endswith(suffix):
             name = name[: -len(suffix)]
+    name = re.sub(r'\s+', ' ', name)  # Normalize whitespace
     return name.strip()
 
 def load_data(filepath):
@@ -74,14 +78,9 @@ def best_match(name, combined_df, tickers_df):
             pre_matched_name = preprocess_name(matched_name)
             ticker_titles = tickers_df['title'].tolist()
             pre_ticker_titles = [preprocess_name(t) for t in ticker_titles]
-            # Debug: print all raw ticker titles containing 'Tesla'
-            raw_tesla_titles = [t for t in ticker_titles if 'Tesla' in t or 'TESLA' in t or 'tesla' in t]
-            logging.info(f"Raw ticker titles with 'Tesla': {raw_tesla_titles}")
-            logging.info(f"Pre-matched name: '{pre_matched_name}'")
-            for i, t in enumerate(pre_ticker_titles):
-                if 'tesla' in t:
-                    logging.info(f"Ticker title candidate {i}: '{t}'")
-            ticker_output = process.extractOne(pre_matched_name, pre_ticker_titles)
+            
+            # Use token_set_ratio for more robust matching
+            ticker_output = process.extractOne(pre_matched_name, pre_ticker_titles, scorer=fuzz.token_set_ratio)
             logging.info(f"Ticker output: {ticker_output}")
             "It finds the ticker of the matched name"
             if ticker_output and len(ticker_output) == 2:
@@ -95,7 +94,7 @@ def best_match(name, combined_df, tickers_df):
                     logging.info(f"Ticker found: {ticker}")
                     return matched_name, ticker, state, country, score, ticker_score
                 else:
-                    logging.info(f"Ticker score {ticker_score} is below threshold of 91")
+                    logging.info(f"Ticker score {ticker_score} is below threshold of 90")
                     return matched_name, None, state, country, score, None
             else:
                 logging.warning(f"No ticker match found for {matched_name}")
