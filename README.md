@@ -35,6 +35,21 @@ This project provides a Flask API and web interface to fuzzy match company names
    - Go to [http://localhost:8080](http://localhost:8080) (or your chosen port)
    - Enter a company name to get the best match and ticker info
 
+## Running with Docker
+
+To build and run the app using Docker:
+
+```bash
+docker build -t company-matcher-api .
+docker run -p 8080:8080 company-matcher-api
+```
+
+Or, using Docker Compose:
+
+```bash
+docker-compose up --build
+```
+
 ## API Usage
 - The root endpoint `/` supports both GET (form) and POST (form submission).
 - The API returns the matched company, ticker, state, country, and match scores.
@@ -48,6 +63,14 @@ import pandas as pd
 batch_df = pd.read_csv('my_companies.csv')  # Must have a 'Name' column
 public_companies = load_public_companies('supplemental_data/company_tickers.csv')
 result_df = process_and_save_batch(batch_df, public_companies, save_path='results.csv')
+```
+
+## Running Tests
+
+To run the test suite:
+
+```bash
+python test_api.py
 ```
 
 ## Troubleshooting

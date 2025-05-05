@@ -107,19 +107,3 @@ def best_match(name, combined_df, tickers_df):
         logging.error(f"Error in best_match for name '{name}': {e}")
         return None, None, None, None, 0, None
 
-def process_and_save_batch(batch_df, public_companies, save_path='results.csv'):
-    """
-    Process a DataFrame of companies, find matches, and append results to a CSV.
-    """
-    try:
-        batch_df = batch_df.copy()
-        batch_df['Match Results'] = batch_df['Name'].apply(lambda n: best_match(n, public_companies))
-        batch_df['Ticker'] = batch_df['Match Results'].apply(lambda x: x[0])
-        batch_df['Ticker Match Score'] = batch_df['Match Results'].apply(lambda x: x[1])
-        batch_df.drop('Match Results', axis=1, inplace=True)
-        mode = 'a' if pd.io.common.file_exists(save_path) else 'w'
-        batch_df.to_csv(save_path, mode=mode, header=(not pd.io.common.file_exists(save_path)), index=False)
-        return batch_df
-    except Exception as e:
-        logging.error(f"Error in process_and_save_batch: {e}")
-        raise 
