@@ -10,7 +10,7 @@ This project provides a Flask API and web interface to fuzzy match company names
 - Docker support for easy deployment
 
 ## Data Sources
-- **Combined Dataset:** `3_combined_dataset_postproc.csv` (your main company database)
+- **Combined Dataset:** `3_combined_dataset_postproc.csv` ( main company database)
 - **Tickers Dataset:** `supplemental_data/company_tickers.csv` (merged NASDAQ and NYSE/AMEX tickers, updated via script)
 
 ## Setup
@@ -46,6 +46,10 @@ docker run -p 8080:8080 company-matcher-api
 
 Or, using Docker Compose:
 
+Can go in file and click run all services 
+
+or
+
 ```bash
 docker-compose up --build
 ```
@@ -54,16 +58,7 @@ docker-compose up --build
 - The root endpoint `/` supports both GET (form) and POST (form submission).
 - The API returns the matched company, ticker, state, country, and match scores.
 
-## Batch Processing
-You can process a batch of company names using the utility function in `data_utils.py`:
-```python
-from data_utils import process_and_save_batch, load_public_companies
-import pandas as pd
 
-batch_df = pd.read_csv('my_companies.csv')  # Must have a 'Name' column
-public_companies = load_public_companies('supplemental_data/company_tickers.csv')
-result_df = process_and_save_batch(batch_df, public_companies, save_path='results.csv')
-```
 
 ## Running Tests
 
@@ -73,22 +68,13 @@ To run the test suite:
 python test_api.py
 ```
 
-## Troubleshooting
-- **Port already in use:**
-  - Find and kill the process using the port:
-    ```bash
-    lsof -i :8080
-    kill <PID>
-    ```
-  - Or, change the port in `app.py` to a free port (e.g., 5000).
-- **Ticker not found for public company:**
-  - Make sure you have run `update_tickers.py` to get the latest tickers.
-  - The fuzzy matching logic now uses advanced preprocessing and token set ratio for better accuracy.
+
 
 ## Notes
 - The ticker dataset is now a CSV, not JSON.
 - Fuzzy matching is robust to suffixes, punctuation, and word order.
 - Only companies with a ticker match score >= 90 are assigned a ticker.
+- Uisng combined dataset NYSE and NASDAQ for tickers
 
 ## License
 MIT 
