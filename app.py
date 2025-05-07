@@ -2,6 +2,11 @@ from flask import Flask, jsonify, request, make_response
 import openai
 import logging
 import sys
+import os
+from dotenv import load_dotenv
+import subprocess
+
+load_dotenv()
 
 app = Flask(__name__)
 
@@ -17,9 +22,11 @@ def home():
     try:
         if request.method == 'POST':
             name = request.form.get('name')
-            api_key = request.form.get('api_key')
-            if not name or not api_key:
-                error_message = "Company name and API key are required."
+            api_key = os.environ.get('OPENAI_API_KEY')
+            if not name:
+                error_message = "Company name is required."
+            elif not api_key:
+                error_message = "OpenAI API key is not set in the backend."
             else:
                 try:
                     client = openai.OpenAI(api_key=api_key)
@@ -55,13 +62,14 @@ def home():
             </head>
             <body>
                 <div class="container">
-                    <h2>Company GPT Info</h2>
+                    <h2>Company Ticker Finder</h2>
                     <form method="post">
                         <input type="text" name="name" placeholder="Enter company name" required>
                         <br>
-                        <input type="text" name="api_key" placeholder="Enter your OpenAI API key" required>
-                        <br>
-                        <input type="submit" value="Ask GPT">
+                        <input type="submit" value="Search Ticker">
+                    </form>
+                    <form action="/update_tickers" method="post" style="margin-top:20px;">
+                        <button type="submit">Update Tickers</button>
                     </form>
                     {result_html}
                 </div>
@@ -72,6 +80,32 @@ def home():
     response.headers["X-API-Version"] = API_VERSION
     return response
 
+@app.route('/update_tickers', methods=['POST'])
+def update_tickers():
+    try:
+        subprocess.run(['python3', 'update_tickers.py'], check=True)
+        message = 'Tickers updated successfully.'
+    except subprocess.CalledProcessError as e:
+        message = f'Error updating tickers: {e}'
+    html = f'''
+        <html>
+            <head>
+                <title>Update Tickers</title>
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <link rel="stylesheet" href="/static/style.css">
+            </head>
+            <body>
+                <div class="container">
+                    <h2>Update Tickers</h2>
+                    <div class='result'>{message}</div>
+                    <a href="/">Back to Home</a>
+                </div>
+            </body>
+        </html>
+    '''
+    response = make_response(html)
+    response.headers["X-API-Version"] = API_VERSION
+    return response
 # Optional: Add a global error handler for uncaught exceptions
 
 if __name__ == "__main__":
