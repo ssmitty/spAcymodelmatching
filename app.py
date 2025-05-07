@@ -1,5 +1,5 @@
 from flask import Flask, jsonify, request, make_response
-import data_utils
+import openai
 import logging
 import sys
 
@@ -10,16 +10,6 @@ API_VERSION = "0.1.0"
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 
-# Load company data at startup with error handling
-try:
-    combined_data_path = '3_combined_dataset_postproc.csv'
-    tickers_data_path = 'supplemental_data/company_tickers.csv'
-    combined_df = data_utils.load_combined_dataset(combined_data_path)
-    tickers_df = data_utils.load_public_companies(tickers_data_path)
-except Exception as e:
-    logging.critical(f"Failed to load data at startup: {e}")
-    sys.exit(1)
-
 @app.route('/', methods=['GET', 'POST'])
 def home():
     result = None
@@ -27,23 +17,25 @@ def home():
     try:
         if request.method == 'POST':
             name = request.form.get('name')
-            if not name:
-                error_message = "No company name provided."
+            api_key = request.form.get('api_key')
+            if not name or not api_key:
+                error_message = "Company name and API key are required."
             else:
                 try:
-                    match_name, ticker, state, country, score, ticker_score = data_utils.best_match(name, combined_df, tickers_df)
-                    result = {
-                        "input_name": name,
-                        "matched_name": match_name,
-                        "ticker": ticker,
-                        "state": state,
-                        "country": country,
-                        "match_score": score,
-                        "ticker_score": ticker_score
-                    }
+                    client = openai.OpenAI(api_key=api_key)
+                    prompt = (
+                        f"Is '{name}' a public company listed on NASDAQ or NYSE? "
+                        "If so, respond ONLY with the company name and its ticker symbol, separated by a colon (e.g., 'Apple Inc.: AAPL'). "
+                        "If not, respond ONLY with '<COMPANY_NAME>: Not a public company'. Do not add any extra text."
+                    )
+                    response = client.chat.completions.create(
+                        model="gpt-3.5-turbo",
+                        messages=[{"role": "user", "content": prompt}]
+                    )
+                    result = response.choices[0].message.content.strip()
                 except Exception as e:
-                    logging.error(f"Error during matching: {e}")
-                    error_message = "An error occurred during matching. Please try again."
+                    logging.error(f"Error from OpenAI: {e}")
+                    error_message = f"Error from OpenAI: {e}"
     except Exception as e:
         logging.error(f"Unexpected error in home route: {e}")
         error_message = "An unexpected error occurred. Please try again."
@@ -52,30 +44,24 @@ def home():
     if error_message:
         result_html = f"<div class='result' style='color:red;'><b>Error:</b> {error_message}</div>"
     elif result:
-        result_html = (
-            f"<div class='result'><b>Input:</b> {result['input_name']}<br>"
-            f"<b>Matched:</b> {result['matched_name']}<br>"
-            f"<b>Ticker:</b> {result['ticker']}<br>"
-            f"<b>State:</b> {result['state']}<br>"
-            f"<b>Country:</b> {result['country']}<br>"
-            f"<b>Company Match Score:</b> {result['match_score']}<br>"
-            f"<b>Ticker Match Score:</b> {result['ticker_score']}</div>"
-        )
+        result_html = f"<div class='result' style='word-break:break-word;max-width:500px;margin:auto;font-size:1.2em;padding:1em;background:#f9f9f9;border-radius:8px;border:1px solid #ddd;text-align:center;'><b>{result}</b></div>"
 
     html = f'''
         <html>
             <head>
-                <title>Company Matcher</title>
+                <title>Company GPT Info</title>
                 <meta name="viewport" content="width=device-width, initial-scale=1">
                 <link rel="stylesheet" href="/static/style.css">
             </head>
             <body>
                 <div class="container">
-                    <h2>Company Matcher</h2>
+                    <h2>Company GPT Info</h2>
                     <form method="post">
                         <input type="text" name="name" placeholder="Enter company name" required>
                         <br>
-                        <input type="submit" value="Match">
+                        <input type="text" name="api_key" placeholder="Enter your OpenAI API key" required>
+                        <br>
+                        <input type="submit" value="Ask GPT">
                     </form>
                     {result_html}
                 </div>
@@ -87,7 +73,6 @@ def home():
     return response
 
 # Optional: Add a global error handler for uncaught exceptions
-
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=8080, use_reloader=False)
